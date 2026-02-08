@@ -2,7 +2,7 @@
   const script = document.currentScript;
   const SITE_ID = script.getAttribute('data-site-id') || 'default';
   const ACCENT = script.getAttribute('data-accent') || '#10b981';
-  const CONVEX_URL = script.getAttribute('data-convex-url') || 'https://little-echidna-115.convex.site';
+  const CONVEX_URL = script.getAttribute('data-convex-url') || 'https://little-echidna-115.eu-west-1.convex.site';
 
   const SESSION_KEY = 'orion_chat_session';
   const CONVO_KEY = 'orion_chat_convo_' + SITE_ID;
