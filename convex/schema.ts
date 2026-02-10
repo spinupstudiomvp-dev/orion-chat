@@ -2,26 +2,28 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  conversations: defineTable({
+  sites: defineTable({
     siteId: v.string(),
-    sessionId: v.string(),
-    visitorName: v.optional(v.string()),
-    visitorEmail: v.optional(v.string()),
-    status: v.string(), // "open" | "resolved"
+    name: v.string(),
+    domain: v.string(),
+    repo: v.string(),
+    tokenHash: v.string(),
+    clientName: v.string(),
+    clientEmail: v.optional(v.string()),
+    active: v.boolean(),
     createdAt: v.number(),
-    updatedAt: v.number(),
-    pageUrl: v.optional(v.string()),
-    userAgent: v.optional(v.string()),
   })
     .index("by_siteId", ["siteId"])
-    .index("by_sessionId", ["sessionId"])
-    .index("by_status", ["status"]),
+    .index("by_tokenHash", ["tokenHash"]),
 
   messages: defineTable({
-    conversationId: v.id("conversations"),
-    sender: v.string(), // "visitor" | "agent"
-    text: v.string(),
+    siteId: v.string(),
+    role: v.string(), // "client" | "agent"
+    content: v.string(),
+    status: v.string(), // "pending" | "in-progress" | "done"
+    metadata: v.optional(v.string()),
     createdAt: v.number(),
-    readAt: v.optional(v.number()),
-  }).index("by_conversationId", ["conversationId"]),
+  })
+    .index("by_siteId", ["siteId"])
+    .index("by_siteId_created", ["siteId", "createdAt"]),
 });
