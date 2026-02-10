@@ -49,11 +49,9 @@ export const updateStatus = mutation({
 export const getPending = query({
   args: { siteId: v.optional(v.string()) },
   handler: async (ctx, { siteId }) => {
-    let q = ctx.db.query("messages");
-    if (siteId) {
-      q = q.withIndex("by_siteId", (qb) => qb.eq("siteId", siteId));
-    }
-    const all = await q.collect();
+    const all = siteId
+      ? await ctx.db.query("messages").withIndex("by_siteId", (q) => q.eq("siteId", siteId)).collect()
+      : await ctx.db.query("messages").collect();
     return all.filter((m) => m.role === "client" && m.status === "pending");
   },
 });
