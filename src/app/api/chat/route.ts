@@ -4,6 +4,16 @@ const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || "nvapi-TKuZdzRwLm7MJrN7FszV
 const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const CONVEX_URL = "https://hardy-mongoose-695.eu-west-1.convex.site";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, X-OC-Token, Authorization",
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
+}
+
 // Simple in-memory rate limiter
 const rateLimits = new Map<string, { count: number; resetAt: number }>();
 
@@ -56,11 +66,11 @@ export async function POST(req: NextRequest) {
     const { messages, siteId, pageUrl, token } = body;
 
     if (!messages || !token) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400, headers: corsHeaders });
     }
 
     if (!checkRateLimit(token)) {
-      return NextResponse.json({ error: "Rate limited. Try again in a minute." }, { status: 429 });
+      return NextResponse.json({ error: "Rate limited. Try again in a minute." }, { status: 429, headers: corsHeaders });
     }
 
     const systemMessage = {
@@ -107,7 +117,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!aiResponse) {
-      return NextResponse.json({ error: `AI unavailable: ${lastError}` }, { status: 502 });
+      return NextResponse.json({ error: `AI unavailable: ${lastError}` }, { status: 502, headers: corsHeaders });
     }
 
     // Check if AI wants to create a ticket
@@ -142,8 +152,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ message: aiResponse, ticketCreated });
+    return NextResponse.json({ message: aiResponse, ticketCreated }, { headers: corsHeaders });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: e.message }, { status: 500, headers: corsHeaders });
   }
 }
