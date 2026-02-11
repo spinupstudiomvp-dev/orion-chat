@@ -27,6 +27,7 @@
   let chatHistory = [];
   let tickets = [];
   let isTyping = false;
+  let pendingImages = []; // base64 data URLs queued for next message
 
   // Load chat history from localStorage
   try {
@@ -50,6 +51,76 @@
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     html = html.replace(/\n/g, '<br>');
     return html;
+  }
+
+  function resizeImage(file, maxBytes = 800000) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          // Scale down if needed
+          const maxDim = 1200;
+          if (width > maxDim || height > maxDim) {
+            const ratio = Math.min(maxDim / width, maxDim / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+          // Try decreasing quality until under maxBytes
+          let quality = 0.8;
+          let dataUrl = canvas.toDataURL("image/jpeg", quality);
+          while (dataUrl.length > maxBytes && quality > 0.2) {
+            quality -= 0.1;
+            dataUrl = canvas.toDataURL("image/jpeg", quality);
+          }
+          resolve(dataUrl);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function addPendingImage(dataUrl) {
+    if (pendingImages.length >= 3) return; // max 3 images
+    pendingImages.push(dataUrl);
+    renderImagePreview();
+  }
+
+  function renderImagePreview() {
+    let preview = document.getElementById("oc-img-preview");
+    if (!preview) {
+      preview = document.createElement("div");
+      preview.id = "oc-img-preview";
+      preview.style.cssText = "display:flex;gap:6px;padding:6px 16px 0;flex-wrap:wrap;";
+      const inputArea = document.getElementById("oc-input-area");
+      inputArea.parentNode.insertBefore(preview, inputArea);
+    }
+    preview.innerHTML = pendingImages.map((img, i) => `
+      <div style="position:relative;width:60px;height:60px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);">
+        <img src="${img}" style="width:100%;height:100%;object-fit:cover;" />
+        <div data-rm-img="${i}" style="position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.7);color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;">✕</div>
+      </div>
+    `).join("");
+    preview.querySelectorAll("[data-rm-img]").forEach((el) => {
+      el.addEventListener("click", () => {
+        pendingImages.splice(parseInt(el.dataset.rmImg), 1);
+        renderImagePreview();
+      });
+    });
+    if (pendingImages.length === 0 && preview) preview.innerHTML = "";
+  }
+
+  async function handleImageFile(file) {
+    if (!file || !file.type.startsWith("image/")) return;
+    const dataUrl = await resizeImage(file);
+    addPendingImage(dataUrl);
   }
 
   function timeAgo(ts) {
@@ -108,7 +179,11 @@
   }
 
   async function sendChat(text) {
-    chatHistory.push({ role: "user", content: text, ts: Date.now() });
+    const msgImages = [...pendingImages];
+    pendingImages = [];
+    renderImagePreview();
+
+    chatHistory.push({ role: "user", content: text, ts: Date.now(), images: msgImages.length > 0 ? msgImages : undefined });
     saveChatHistory();
     renderChat();
     scrollToBottom();
@@ -121,16 +196,20 @@
         .filter((m) => m.role === "user" || m.role === "assistant")
         .map((m) => ({ role: m.role, content: m.content }));
 
+      const payload = {
+        messages,
+        siteId: siteInfo?.siteId,
+        pageUrl: window.location.href,
+        token,
+        systemPrompt: siteInfo?._systemPrompt || undefined,
+      };
+      // Attach images only for the current send
+      if (msgImages.length > 0) payload.images = msgImages;
+
       const res = await fetch(`${APP_BASE}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages,
-          siteId: siteInfo?.siteId,
-          pageUrl: window.location.href,
-          token,
-          systemPrompt: siteInfo?._systemPrompt || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -177,6 +256,9 @@
     let html = "";
     chatHistory.forEach((m) => {
       const isUser = m.role === "user";
+      const imgHtml = m.images && m.images.length > 0
+        ? `<div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap;">${m.images.map((img) => `<img src="${img}" style="max-width:140px;max-height:100px;border-radius:8px;object-fit:cover;cursor:pointer;" onclick="window.open(this.src)" />`).join("")}</div>`
+        : "";
       html += `
         <div style="display:flex;flex-direction:column;align-items:${isUser ? "flex-end" : "flex-start"};margin-bottom:12px;">
           <div style="
@@ -184,7 +266,7 @@
             border-radius:${isUser ? "16px 16px 4px 16px" : "16px 16px 16px 4px"};
             background:${isUser ? "#3b82f6" : "#1e293b"};
             color:#fff;font-size:13px;line-height:1.6;word-break:break-word;
-          ">${formatMessage(m.content)}</div>
+          ">${imgHtml}${formatMessage(m.content)}</div>
           <div style="font-size:10px;color:#64748b;margin-top:3px;">${timeAgo(m.ts)}</div>
         </div>`;
     });
@@ -298,7 +380,13 @@
       </div>
       <div id="oc-content" style="flex:1;overflow-y:auto;padding:16px;min-height:0;"></div>
       <div id="oc-input-area" style="padding:12px 16px;border-top:1px solid rgba(255,255,255,0.06);background:#0f172a;">
-        <div style="display:flex;gap:8px;">
+        <input type="file" id="oc-file-input" accept="image/*" multiple style="display:none;" />
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div id="oc-attach-btn" style="cursor:pointer;color:#64748b;padding:6px;border-radius:8px;transition:color 0.2s;flex-shrink:0;" title="Attach image">
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+            </svg>
+          </div>
           <input id="oc-input" type="text" placeholder="Describe your issue or request..." style="
             flex:1;padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);
             background:#1e293b;color:#fff;font-size:13px;outline:none;transition:border-color 0.2s;
@@ -347,6 +435,38 @@
     sendBtn.addEventListener("click", handleSend);
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    });
+
+    // Image attach button
+    const attachBtn = document.getElementById("oc-attach-btn");
+    const fileInput = document.getElementById("oc-file-input");
+    attachBtn.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", (e) => {
+      Array.from(e.target.files).forEach(handleImageFile);
+      fileInput.value = "";
+    });
+
+    // Paste from clipboard
+    input.addEventListener("paste", (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          e.preventDefault();
+          handleImageFile(item.getAsFile());
+        }
+      }
+    });
+
+    // Drag and drop on the content area
+    const content = document.getElementById("oc-content");
+    panel.addEventListener("dragover", (e) => { e.preventDefault(); e.stopPropagation(); });
+    panel.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer?.files) {
+        Array.from(e.dataTransfer.files).forEach(handleImageFile);
+      }
     });
   }
 
