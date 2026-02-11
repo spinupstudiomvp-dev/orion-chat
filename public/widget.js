@@ -300,18 +300,35 @@
       return;
     }
 
-    container.innerHTML = tickets.map((t) => `
+    container.innerHTML = tickets.map((t) => {
+      const shortId = t._id.slice(-8).toUpperCase();
+      return `
       <div style="background:#1e293b;border-radius:12px;padding:14px 16px;margin-bottom:8px;border:1px solid rgba(255,255,255,0.04);">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
           ${typeBadge(t.type)}
           ${statusBadge(t.status)}
-          <span style="margin-left:auto;font-size:10px;color:#64748b;">${timeAgo(t.createdAt)}</span>
+          <span class="oc-ticket-id" data-id="${t._id}" style="margin-left:auto;font-size:10px;color:#3b82f6;cursor:pointer;font-family:monospace;background:rgba(59,130,246,0.1);padding:2px 6px;border-radius:4px;transition:background 0.2s;" title="Click to copy ticket ID">#${shortId}</span>
+          <span style="font-size:10px;color:#64748b;">${timeAgo(t.createdAt)}</span>
         </div>
         <div style="font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:4px;">${escapeHtml(t.title)}</div>
         <div style="font-size:12px;color:#94a3b8;line-height:1.5;">${escapeHtml(t.description).substring(0, 150)}</div>
         ${t.pageUrl ? `<div style="font-size:10px;color:#64748b;margin-top:6px;">📍 ${escapeHtml(t.pageUrl)}</div>` : ""}
-      </div>
-    `).join("");
+      </div>`;
+    }).join("");
+
+    // Add click-to-copy handlers
+    container.querySelectorAll(".oc-ticket-id").forEach((el) => {
+      el.addEventListener("click", () => {
+        const fullId = el.dataset.id;
+        navigator.clipboard.writeText(fullId).then(() => {
+          const orig = el.textContent;
+          el.textContent = "Copied!";
+          el.style.background = "rgba(34,197,94,0.2)";
+          el.style.color = "#22c55e";
+          setTimeout(() => { el.textContent = orig; el.style.background = "rgba(59,130,246,0.1)"; el.style.color = "#3b82f6"; }, 1500);
+        });
+      });
+    });
   }
 
   function switchTab(tab) {
