@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
 
     const systemMessage = {
       role: "system",
-      content: `${fullSystemPrompt}\n\nContext — Site ID: ${siteId || "unknown"}, Current page: ${pageUrl || "unknown"}`,
+      content: `${fullSystemPrompt}\n\nContext — Site: ${body.siteName || siteId || "unknown"}, Client: ${body.clientName || "unknown"}, Current page: ${pageUrl || "unknown"}`,
     };
 
     // Try models in order — use vision-capable models when images are attached

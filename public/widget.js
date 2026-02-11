@@ -199,6 +199,8 @@
       const payload = {
         messages,
         siteId: siteInfo?.siteId,
+        siteName: siteInfo?.siteName,
+        clientName: siteInfo?.clientName,
         pageUrl: window.location.href,
         token,
         systemPrompt: siteInfo?._systemPrompt || undefined,
