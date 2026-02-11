@@ -265,7 +265,14 @@ export default function TicketsPage() {
                               background: PRIORITY_DOTS[ticket.priority] || "#6b7280",
                             }} />
                           )}
-                          <span style={{ marginLeft: "auto", fontSize: 10, color: "#484f58" }}>
+                          <span
+                            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(ticket._id); const el = e.currentTarget; el.textContent = "Copied!"; el.style.color = "#22c55e"; el.style.background = "rgba(34,197,94,0.15)"; setTimeout(() => { el.textContent = "#" + ticket._id.slice(-8).toUpperCase(); el.style.color = "#3b82f6"; el.style.background = "rgba(59,130,246,0.1)"; }, 1500); }}
+                            style={{ marginLeft: "auto", fontSize: 10, color: "#3b82f6", cursor: "pointer", fontFamily: "monospace", background: "rgba(59,130,246,0.1)", padding: "2px 6px", borderRadius: 4, transition: "all 0.2s" }}
+                            title="Click to copy ticket ID"
+                          >
+                            #{ticket._id.slice(-8).toUpperCase()}
+                          </span>
+                          <span style={{ fontSize: 10, color: "#484f58" }}>
                             {timeAgo(ticket.createdAt)}
                           </span>
                         </div>
