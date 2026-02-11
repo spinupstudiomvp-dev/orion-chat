@@ -387,10 +387,12 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
             </svg>
           </div>
-          <input id="oc-input" type="text" placeholder="Describe your issue or request..." style="
+          <textarea id="oc-input" placeholder="Describe your issue or request..." rows="1" style="
             flex:1;padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);
             background:#1e293b;color:#fff;font-size:13px;outline:none;transition:border-color 0.2s;
-          " onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'" />
+            resize:none;max-height:120px;overflow-y:auto;font-family:inherit;line-height:1.4;
+          " onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'"
+          oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"></textarea>
           <button id="oc-send" style="
             padding:10px 16px;border-radius:12px;border:none;
             background:#3b82f6;color:#fff;font-weight:600;font-size:13px;
@@ -429,6 +431,7 @@
       const text = input.value.trim();
       if (!text || isTyping) return;
       input.value = "";
+      input.style.height = "auto";
       sendChat(text);
     }
 
