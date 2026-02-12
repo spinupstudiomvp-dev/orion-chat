@@ -298,4 +298,137 @@ http.route({
   }),
 });
 
+// ============================================================
+// SCOPING — Session & Brief endpoints
+// ============================================================
+
+http.route({
+  path: "/api/scope/session",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const url = new URL(req.url);
+    const sessionId = url.searchParams.get("sessionId") || "";
+    if (!sessionId) return cors({ error: "Missing sessionId" }, 400);
+    const session = await ctx.runQuery(api.scopingSessions.getBySessionId, { sessionId });
+    if (!session) return cors({ session: null, messages: [] });
+    const messages = await ctx.runQuery(api.scopingMessages.list, { sessionId });
+    return cors({ session, messages });
+  }),
+});
+http.route({ path: "/api/scope/session", method: "OPTIONS", handler: corsOptions() });
+
+http.route({
+  path: "/api/scope/message",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const { sessionId, role, content } = await req.json();
+    if (!sessionId || !role || !content) return cors({ error: "Missing fields" }, 400);
+
+    // Ensure session exists
+    const session = await ctx.runQuery(api.scopingSessions.getBySessionId, { sessionId });
+    if (!session) {
+      await ctx.runMutation(api.scopingSessions.create, { sessionId });
+    }
+
+    await ctx.runMutation(api.scopingMessages.send, { sessionId, role, content });
+    return cors({ ok: true });
+  }),
+});
+http.route({ path: "/api/scope/message", method: "OPTIONS", handler: corsOptions() });
+
+http.route({
+  path: "/api/scope/brief",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const { sessionId, briefData, status } = await req.json();
+    if (!sessionId || !briefData) return cors({ error: "Missing fields" }, 400);
+
+    // Ensure session exists
+    const session = await ctx.runQuery(api.scopingSessions.getBySessionId, { sessionId });
+    if (!session) {
+      await ctx.runMutation(api.scopingSessions.create, { sessionId });
+    }
+
+    await ctx.runMutation(api.scopingSessions.updateBrief, { sessionId, briefData, status });
+    return cors({ ok: true });
+  }),
+});
+http.route({ path: "/api/scope/brief", method: "OPTIONS", handler: corsOptions() });
+
+http.route({
+  path: "/api/scope/submit",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const { sessionId, email } = await req.json();
+    if (!sessionId || !email) return cors({ error: "Missing fields" }, 400);
+
+    // Get session
+    const session = await ctx.runQuery(api.scopingSessions.getBySessionId, { sessionId });
+    if (!session) return cors({ error: "Session not found" }, 404);
+
+    // Create/update user
+    const userId = await ctx.runMutation(api.scopingUsers.createOrUpdate, { email });
+
+    // Submit session
+    await ctx.runMutation(api.scopingSessions.submit, { sessionId, email, userId: String(userId) });
+
+    // Send Telegram notification
+    let briefSummary = "No brief data";
+    try {
+      if (session.briefData) {
+        const brief = JSON.parse(session.briefData);
+        briefSummary = `📋 <b>${brief.project_name || "Untitled"}</b>\nType: ${brief.project_type || "N/A"}\n${(brief.description || "").substring(0, 300)}`;
+      }
+    } catch { /* */ }
+    await sendTelegram(`🚀 <b>New Project Brief Submitted</b>\n\nFrom: ${email}\n\n${briefSummary}`);
+
+    return cors({ ok: true });
+  }),
+});
+http.route({ path: "/api/scope/submit", method: "OPTIONS", handler: corsOptions() });
+
+http.route({
+  path: "/api/scope/auth/send-magic-link",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const { email } = await req.json();
+    if (!email) return cors({ error: "Missing email" }, 400);
+
+    // Generate token
+    const token = crypto.randomUUID();
+    const expiry = Date.now() + 15 * 60 * 1000; // 15 min
+
+    await ctx.runMutation(api.scopingUsers.createOrUpdate, {
+      email,
+      magicLinkToken: token,
+      magicLinkExpiry: expiry,
+    });
+
+    // In production, send email via Resend. For now return token for dev.
+    // The Next.js API route handles actual email sending.
+    return cors({ ok: true, token }); // token returned for dev; remove in prod
+  }),
+});
+http.route({ path: "/api/scope/auth/send-magic-link", method: "OPTIONS", handler: corsOptions() });
+
+http.route({
+  path: "/api/scope/auth/verify",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const { token } = await req.json();
+    if (!token) return cors({ error: "Missing token" }, 400);
+
+    const user = await ctx.runQuery(api.scopingUsers.getByMagicLinkToken, { token });
+    if (!user) return cors({ error: "Invalid token" }, 401);
+    if (user.magicLinkExpiry && Date.now() > user.magicLinkExpiry) {
+      return cors({ error: "Token expired" }, 401);
+    }
+
+    await ctx.runMutation(api.scopingUsers.clearMagicLink, { email: user.email });
+
+    return cors({ ok: true, email: user.email, userId: String(user._id) });
+  }),
+});
+http.route({ path: "/api/scope/auth/verify", method: "OPTIONS", handler: corsOptions() });
+
 export default http;

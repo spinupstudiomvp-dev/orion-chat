@@ -28,6 +28,41 @@ export default defineSchema({
     .index("by_siteId", ["siteId"])
     .index("by_siteId_created", ["siteId", "createdAt"]),
 
+  // === Project Scoping Tables ===
+  scopingSessions: defineTable({
+    sessionId: v.string(),
+    userId: v.optional(v.string()),
+    email: v.optional(v.string()),
+    status: v.string(), // "active" | "brief_ready" | "submitted" | "archived"
+    briefData: v.optional(v.string()), // JSON string
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_sessionId", ["sessionId"])
+    .index("by_userId", ["userId"])
+    .index("by_status", ["status"]),
+
+  scopingMessages: defineTable({
+    sessionId: v.string(),
+    role: v.string(), // "user" | "assistant" | "system"
+    content: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_sessionId", ["sessionId"])
+    .index("by_sessionId_created", ["sessionId", "createdAt"]),
+
+  scopingUsers: defineTable({
+    email: v.string(),
+    name: v.optional(v.string()),
+    company: v.optional(v.string()),
+    magicLinkToken: v.optional(v.string()),
+    magicLinkExpiry: v.optional(v.number()),
+    createdAt: v.number(),
+    lastLoginAt: v.optional(v.number()),
+  })
+    .index("by_email", ["email"])
+    .index("by_magicLinkToken", ["magicLinkToken"]),
+
   tickets: defineTable({
     siteId: v.string(),
     title: v.string(),

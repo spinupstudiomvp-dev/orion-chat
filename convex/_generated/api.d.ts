@@ -10,6 +10,9 @@
 
 import type * as http from "../http.js";
 import type * as messages from "../messages.js";
+import type * as scopingMessages from "../scopingMessages.js";
+import type * as scopingSessions from "../scopingSessions.js";
+import type * as scopingUsers from "../scopingUsers.js";
 import type * as sites from "../sites.js";
 import type * as tickets from "../tickets.js";
 
@@ -22,6 +25,9 @@ import type {
 declare const fullApi: ApiFromModules<{
   http: typeof http;
   messages: typeof messages;
+  scopingMessages: typeof scopingMessages;
+  scopingSessions: typeof scopingSessions;
+  scopingUsers: typeof scopingUsers;
   sites: typeof sites;
   tickets: typeof tickets;
 }>;
