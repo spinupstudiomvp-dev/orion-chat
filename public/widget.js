@@ -1,6 +1,6 @@
 /**
  * OrionChat V2 — AI Chat + Ticket Widget
- * Embed: <script src="https://orion-chat-six.vercel.app/widget.js" defer></script>
+ * Embed: <script src="https://orion-chat-six.vercel.app/widget.js" data-token="YOUR_TOKEN" defer></script>
  */
 (function () {
   const APP_BASE = "https://orion-chat-six.vercel.app";
@@ -16,6 +16,13 @@
     const url = new URL(window.location.href);
     url.searchParams.delete("oc_token");
     window.history.replaceState({}, "", url.toString());
+  }
+
+  // Check for data-token on the script tag
+  const currentScript = document.currentScript || document.querySelector('script[data-token]');
+  const dataToken = currentScript ? currentScript.getAttribute("data-token") : null;
+  if (dataToken) {
+    localStorage.setItem(TOKEN_KEY, dataToken);
   }
 
   const token = localStorage.getItem(TOKEN_KEY);
