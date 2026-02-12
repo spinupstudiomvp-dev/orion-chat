@@ -31,6 +31,7 @@ const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
   bug: { bg: "#dc2626", text: "#fff" },
   change_request: { bg: "#8b5cf6", text: "#fff" },
   feedback: { bg: "#06b6d4", text: "#fff" },
+  project: { bg: "#10b981", text: "#fff" },
 };
 
 const PRIORITY_DOTS: Record<string, string> = {
@@ -96,8 +97,15 @@ export default function TicketsPage() {
     });
   };
 
-  const sites = [...new Set(tickets.map((t) => t.siteId))];
-  const filtered = siteFilter === "all" ? tickets : tickets.filter((t) => t.siteId === siteFilter);
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const visibleTickets = tickets.filter((t) => {
+    // Hide done/closed tickets older than 24h
+    if ((t.status === "done" || t.status === "closed") && (now - t.updatedAt) > TWENTY_FOUR_HOURS) return false;
+    return true;
+  });
+  const sites = [...new Set(visibleTickets.map((t) => t.siteId))];
+  const filtered = siteFilter === "all" ? visibleTickets : visibleTickets.filter((t) => t.siteId === siteFilter);
 
   if (!authed) {
     return (
